@@ -32,9 +32,23 @@ def json_to_yaml_cmd(input, output):
 @main.command("yaml-to-json")
 @click.option("-i", "--input", required=True, help="Input YAML file")
 @click.option("-o", "--output", required=True, help="New output JSON file (must not exist)")
-def yaml_to_json_cmd(input, output):
+@click.option(
+    "--indent",
+    type=click.IntRange(min=0),
+    default=None,
+    help="Spaces per JSON indent level (default: 2). 0 keeps newlines only.",
+)
+@click.option("--compact", is_flag=True, help="Write JSON on one line.")
+def yaml_to_json_cmd(input, output, indent, compact):
     """Convert JSON-compatible YAML to JSON without overwriting files."""
-    _convert(yaml_to_json, input, output)
+    if compact and indent is not None:
+        raise click.UsageError("Pass either --compact or --indent, not both.")
+    chosen = None if compact else (2 if indent is None else indent)
+
+    def convert(source, target):
+        return yaml_to_json(source, target, indent=chosen)
+
+    _convert(convert, input, output)
 
 
 @main.command()

@@ -71,6 +71,58 @@ def test_cli_missing_input(tmp_path):
     assert "Traceback" not in result.output
 
 
+def test_cli_json_indent_and_compact(tmp_path):
+    source = tmp_path / "input.yaml"
+    source.write_text("a: 1\n", encoding="utf-8")
+    runner = CliRunner()
+    default, pretty, compact, newlines = (
+        tmp_path / "default.json",
+        tmp_path / "pretty.json",
+        tmp_path / "compact.json",
+        tmp_path / "newlines.json",
+    )
+    assert (
+        runner.invoke(main, ["yaml-to-json", "-i", str(source), "-o", str(default)]).exit_code == 0
+    )
+    assert default.read_text(encoding="utf-8") == '{\n  "a": 1\n}'
+    args = ["yaml-to-json", "-i", str(source), "-o", str(pretty), "--indent", "4"]
+    assert runner.invoke(main, args).exit_code == 0
+    assert pretty.read_text(encoding="utf-8") == '{\n    "a": 1\n}'
+    assert (
+        runner.invoke(
+            yaml_to_json_cmd, ["-i", str(source), "-o", str(compact), "--compact"]
+        ).exit_code
+        == 0
+    )
+    assert compact.read_text(encoding="utf-8") == '{"a": 1}'
+    zero = runner.invoke(
+        yaml_to_json_cmd, ["-i", str(source), "-o", str(newlines), "--indent", "0"]
+    )
+    assert zero.exit_code == 0
+    assert newlines.read_text(encoding="utf-8") == '{\n"a": 1\n}'
+    conflict = runner.invoke(
+        main,
+        [
+            "yaml-to-json",
+            "-i",
+            str(source),
+            "-o",
+            str(tmp_path / "nope"),
+            "--compact",
+            "--indent",
+            "4",
+        ],
+    )
+    assert conflict.exit_code == 2
+    assert "not both" in conflict.output
+    assert not (tmp_path / "nope").exists()
+    negative = runner.invoke(
+        main, ["yaml-to-json", "-i", str(source), "-o", str(tmp_path / "neg"), "--indent", "-1"]
+    )
+    assert negative.exit_code != 0
+    assert not (tmp_path / "neg").exists()
+
+
 def test_version_and_help():
     runner = CliRunner()
     result = runner.invoke(main, ["--version"])
